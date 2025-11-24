@@ -142,6 +142,7 @@ pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet
     res
 }
 
+#[inline]
 fn add_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
     for i in between {
         for j in between {
@@ -150,6 +151,7 @@ fn add_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
     }
 }
 
+#[inline]
 fn remove_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
     for i in between {
         for j in between {
@@ -158,6 +160,7 @@ fn remove_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
     }
 }
 
+#[inline]
 fn add_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iterator<Item = &'a usize>) {
     for row in rows {
         conflicts[*row][col] = true;
@@ -165,6 +168,7 @@ fn add_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iter
     }
 }
 
+#[inline]
 fn remove_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iterator<Item = &'a usize>) {
     for row in rows {
         conflicts[*row][col] = false;

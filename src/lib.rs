@@ -11,7 +11,7 @@ pub fn make_assignments(conflicts: Vec<Vec<bool>>, min_group_size: usize) -> Vec
 
 /// Try all ways to make the current assignment
 pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
-    fn backtrack_group(
+    fn backtrack(
         conflicts: &mut Vec<Vec<bool>>,
         sols: &mut Vec<Vec<Group>>,
         curr: &mut Vec<Group>,
@@ -27,7 +27,7 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
             } else {
                 skip.extend(&g);
                 curr.push(g);
-                backtrack_group(conflicts, sols, curr, k, ngroups, skip);
+                backtrack(conflicts, sols, curr, k, ngroups, skip);
                 if let Some(g) = curr.pop() {
                     for e in g {
                         skip.remove(&e);
@@ -43,7 +43,7 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
     let mut curr = vec![];
     if n % min_group_size == 0 {
         let n_groups = n / min_group_size;
-        backtrack_group(conflicts, &mut res, &mut curr, min_group_size, n_groups, &mut skip);
+        backtrack(conflicts, &mut res, &mut curr, min_group_size, n_groups, &mut skip);
     } else {
         // let n_big = n % min_group_size;
         // let n_small = (n - n_big * (min_group_size + 1)) / min_group_size;
@@ -55,7 +55,7 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
 
 /// Get all possible ways to group a group of size k together.
 pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet<usize>) -> Vec<Group> {
-    fn backtrack_row(
+    fn backtrack(
         conflicts: &mut Vec<Vec<bool>>,
         sols: &mut Vec<Vec<usize>>,
         curr: &mut Vec<usize>,
@@ -75,7 +75,7 @@ pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet
                     sols.push(curr.clone());
                 } else {
                     add_conflicts(conflicts, col, curr.iter());
-                    backtrack_row(conflicts, sols, curr, col, n, k, skip);
+                    backtrack(conflicts, sols, curr, col, n, k, skip);
                     remove_conflicts(conflicts, col, curr.iter());
                 }
                 curr.pop();
@@ -90,7 +90,7 @@ pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet
             continue;
         }
         let mut curr = vec![row];
-        backtrack_row(conflicts, &mut res, &mut curr, row, n, k, skip);
+        backtrack(conflicts, &mut res, &mut curr, row, n, k, skip);
     }
     res
 }

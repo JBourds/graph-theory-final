@@ -1,16 +1,17 @@
 use std::collections::HashSet;
 
-type Groups = Vec<Vec<usize>>;
+/// Vector of vertex indices corresponding to one group
+type Group = Vec<usize>;
 
 /// Create the maximized number of unique assignments given some minimum group
 /// size.
-pub fn make_assignments(conflicts: Vec<Vec<bool>>, min_group_size: usize) -> Vec<Groups> {
+pub fn make_assignments(conflicts: Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
     todo!()
 }
 
 /// Try all ways to make the current assignment
-pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Option<Groups> {
     todo!()
+pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
 }
 
 /// Get all possible ways to group a group of size k together.

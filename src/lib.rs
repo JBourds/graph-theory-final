@@ -34,15 +34,9 @@ pub fn potential_combinations(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &H
                 if curr.len() == k {
                     sols.push(curr.clone());
                 } else {
-                    for row in curr.iter() {
-                        conflicts[*row][col] = true;
-                        conflicts[col][*row] = true;
-                    }
+                    add_conflicts(conflicts, col, curr.iter());
                     backtrack_row(conflicts, sols, curr, col, n, k, skip);
-                    for row in curr.iter() {
-                        conflicts[*row][col] = false;
-                        conflicts[col][*row] = false;
-                    }
+                    remove_conflicts(conflicts, col, curr.iter());
                 }
                 curr.pop();
             }
@@ -59,6 +53,20 @@ pub fn potential_combinations(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &H
         backtrack_row(conflicts, &mut res, &mut curr, row, n, k, skip);
     }
     res
+}
+
+fn add_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iterator<Item = &'a usize>) {
+    for row in rows {
+        conflicts[*row][col] = true;
+        conflicts[col][*row] = true;
+    }
+}
+
+fn remove_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iterator<Item = &'a usize>) {
+    for row in rows {
+        conflicts[*row][col] = false;
+        conflicts[col][*row] = false;
+    }
 }
 
 #[cfg(test)]

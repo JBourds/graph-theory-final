@@ -10,8 +10,47 @@ pub fn make_assignments(conflicts: Vec<Vec<bool>>, min_group_size: usize) -> Vec
 }
 
 /// Try all ways to make the current assignment
-    todo!()
 pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
+    fn backtrack_group(
+        conflicts: &mut Vec<Vec<bool>>,
+        sols: &mut Vec<Vec<Group>>,
+        curr: &mut Vec<Group>,
+        k: usize,
+        ngroups: usize,
+        skip: &mut HashSet<usize>,
+    ) {
+        for g in potential_groups(conflicts, k, skip) {
+            if curr.len() == ngroups - 1 {
+                curr.push(g);
+                sols.push(curr.clone());
+                curr.pop();
+            } else {
+                skip.extend(&g);
+                curr.push(g);
+                backtrack_group(conflicts, sols, curr, k, ngroups, skip);
+                if let Some(g) = curr.pop() {
+                    for e in g {
+                        skip.remove(&e);
+                    }
+                }
+            }
+        }
+    }
+
+    let n = conflicts.len();
+    let mut res: Vec<Vec<Group>> = vec![];
+    let mut skip = HashSet::new();
+    let mut curr = vec![];
+    if n % min_group_size == 0 {
+        let n_groups = n / min_group_size;
+        backtrack_group(conflicts, &mut res, &mut curr, min_group_size, n_groups, &mut skip);
+    } else {
+        // let n_big = n % min_group_size;
+        // let n_small = (n - n_big * (min_group_size + 1)) / min_group_size;
+        todo!()
+    }
+
+    res
 }
 
 /// Get all possible ways to group a group of size k together.
@@ -90,5 +129,30 @@ mod tests {
         let skip = HashSet::new();
         let res = potential_groups(&mut conflicts, k, &skip);
         assert_eq!(res.len(), 10);
+    }
+
+    #[test]
+    fn even_complete_graph_pairings() {
+        let tests = [
+            (2, 2),
+            (4, 2),
+            (6, 2),
+            (6, 3),
+            (6, 6),
+        ];
+        for (n, k) in tests {
+            let mut conflicts = diagonal(n);
+            let res = single_assignment(&mut conflicts, k);
+            for groups in res {
+                let mut seen: HashSet<usize> = HashSet::new();
+                let mut count = 0;
+                for g in groups {
+                    count += g.len();
+                    seen.extend(&g);
+                }
+                assert_eq!(count, n);
+                assert_eq!(seen.len(), count);
+            }
+        }
     }
 }

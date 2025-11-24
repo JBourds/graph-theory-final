@@ -1,12 +1,129 @@
-
+//! # Group-Assignment Generator
+//!
+//! This module provides a backtracking engine for generating **all possible
+//! multi-round groupings** of a fixed set of vertices such that:
+//!
+//! - Every round partitions all vertices into groups.
+//! - No group is smaller than a specified minimum size.
+//! - No pair of vertices may ever be grouped together more than once
+//!   (a *conflict constraint*).
+//! - The generator returns **only those assignments that achieve the maximum
+//!   number of possible rounds**.
+//!
+//! The design was motivated by scheduling problems such as:
+//! - round-robin small-group assignments,
+//! - classroom partner rotation,
+//! - avoiding repeated team composition,
+//! - tournament or workshop session planning.
+//!
+//! ## Core Concepts
+//!
+//! ### Vertices
+//! Each vertex is an integer index `0..n-1`.  
+//! The system never stores custom data—just relationships (conflicts).
+//!
+//! ### Conflict Matrix
+//! The `conflicts: Vec<BitVec>` parameter is a square boolean adjacency
+//! matrix where `conflicts[i][j] == true` means vertices `i` and `j` may **not**
+//! appear in the same group.  
+//!
+//! Conflicts are updated *dynamically* while exploring group combinations:
+//! - When building a group, temporary conflicts are injected to prune search.
+//! - When completing a round, the chosen groups’ members are permanently
+//!   marked as conflicting so they cannot reappear together in later rounds.
+//!
+//! This mutability is what allows multi-round generation without storing
+//! explicit history.
+//!
+//! ### Groups and Rounds
+//! A **group** is a `Vec<usize>`.  
+//! A **round** is a `Vec<Group>`: a full partition of all vertices.  
+//! An **assignment** is a `Vec<Vec<Group>>`: one valid sequence of rounds.  
+//!
+//! The solver returns a `Vec<Vec<Vec<Group>>>`, meaning:
+//!
+//! ```text
+//! // Many possible assignments
+//! Vec<
+//!     // Single assignment of groups with multiple rounds
+//!     Vec<
+//!         // Single round, containing groups with predetermined group size
+//!         Vec<
+//!             // Single group, containing a vector of vertex indices
+//!             Group
+//!         >
+//!     >
+//! >
+//! ```
+//!
+//! ### Group Size Planning
+//!
+//! A predetermined vector of group sizes for each round is produced by
+//! [`group_sizes()`]. Groups must meet or exceed the minimum size, and any
+//! leftover vertices are distributed as evenly as possible across groups.
+//!
+//! This ensures each round has a fixed shape (e.g., `[3,2,2]` for `7`
+//! vertices with minimum group size 2).
+//!
+//! ## Algorithm Summary
+//!
+//! 1. **Determine per-round group sizes** (`group_sizes()`).
+//! 2. **Enumerate all conflict-valid rounds** given the current conflict state
+//!    (`single_assignment()`).
+//! 3. For each round found:
+//!    - Commit the round, marking all pairs within each group as conflicting.
+//!    - Recursively attempt to build additional rounds.
+//! 4. Once no more rounds are possible, compare the number reached to the
+//!    best found so far.
+//! 5. Return **all** assignments that have the maximal number of rounds.
+//!
+//! The search is fully exhaustive but implements several mechanisms to make it
+//! faster than naïve combinatorial enumeration:
+//!
+//! - Efficient adjacency matrix/skiplist storage using bit vectors (providing
+//!   a modest, constant factor speedup over less compact approaches.
+//! - Pruning recursion tree by not including invalid groups (as determined via
+//!   conflicts list) during recursive calls.
 use bitvec::prelude::*;
 
 /// Vector of vertex indices corresponding to one group
 type Group = Vec<usize>;
 
-/// Create the maximized number of unique assignments given some minimum group
-/// size.
+/// Generate all possible *maximum-round* group assignments such that:
+///
+/// - No two vertices that have previously been in a group together may be
+///   grouped again.
+/// - All groups satisfy a minimum size constraint.
+/// - All rounds must partition all vertices.
+/// - Only assignments achieving the **maximum possible number of rounds**
+///   are returned.
+///
+/// # Arguments
+///
+/// - `conflicts`:  
+///   A square adjacency matrix (bit-matrix) where `conflicts[i][j] == true`
+///   means that vertices `i` and `j` may **not** be placed in the same group.
+///   This matrix gets *updated* as groups are tentatively formed during
+///   backtracking, but is always returned to its previous state.
+///
+/// - `min_group_size`:  
+///   The minimum allowed group size. Groups may be larger if needed for an
+///   even partition.
+///
+/// # Returns
+///
+/// A vector of assignment possibilities. All returned assignments achieve the 
+/// same maximal number of rounds.
+///
+/// # Panics
+///
+/// Panics if the `conflicts` matrix is empty, not square, or has fewer vertices
+/// than required by `min_group_size`.
 pub fn make_assignments(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> Vec<Vec<Vec<Group>>> {
+    assert!(conflicts.len() > 0, "Cannot make groups from 0 vertices.");
+    assert!(conflicts.iter().all(|v| v.len() == conflicts.len()), "Conflicts matrix must have matching dimensions (N x N)");
+    assert!(min_group_size <= conflicts.len(), "Cannot require groups larger than the number of potential vertices.");
+
     fn backtrack(
         conflicts: &mut Vec<BitVec>,
         sols: &mut Vec<Vec<Vec<Group>>>,
@@ -44,6 +161,20 @@ pub fn make_assignments(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> V
     sols
 }
 
+/// Compute the group sizes for a single round, given
+/// `n` total vertices and a minimum group size `min_group_size`.
+///
+/// Produces a vector of sizes that:
+///
+/// - All sum to exactly `n`.
+/// - Are each at least `min_group_size`.
+/// - Distribute any leftover vertices as evenly as possible.
+///
+/// # Example
+///
+/// ```
+/// assert_eq!(group_sizes(7, 2), vec![3, 2, 2]);
+/// ```
 pub fn group_sizes(n: usize, min_group_size: usize) -> Vec<usize> {
     let mut remaining = n % min_group_size;
     let mut sizes = vec![min_group_size; n / min_group_size]; 
@@ -62,7 +193,22 @@ pub fn group_sizes(n: usize, min_group_size: usize) -> Vec<usize> {
     }
 }
 
-/// Try all ways to make the current assignment
+/// Generate all possible **single-round** assignments respecting current
+/// conflict constraints.
+///
+/// A *single assignment* is one full round of grouping using the provided
+/// `group_sizes` (which must sum to the total vertex count).
+///
+/// # Behavior
+///
+/// - Each group in the round is conflict-free according to `conflicts`.
+/// - Once a vertex is placed in a group, it is marked as “skipped” for the
+///   remainder of this round.
+/// - All assignments are returned; no maximality filtering occurs here.
+///
+/// # Returns
+///
+/// A list of all valid ways to construct one round:
 pub fn single_assignment(conflicts: &mut Vec<BitVec>, group_sizes: &[usize]) -> Vec<Vec<Group>> {
     fn backtrack(
         conflicts: &mut Vec<BitVec>,
@@ -100,7 +246,27 @@ pub fn single_assignment(conflicts: &mut Vec<BitVec>, group_sizes: &[usize]) -> 
     res
 }
 
-/// Get all possible ways to group a group of size k together.
+/// Enumerate all possible **groups of size `k`** that are valid given the
+/// conflict matrix and current "skip" mask.
+///
+/// A group is valid if:
+///
+/// - It contains exactly `k` vertices.
+/// - None of the vertices are marked in `skip` (already chosen).
+/// - No pair inside the group has a conflict (`conflicts[i][j] == true`).
+///
+/// The function **temporarily** marks conflict edges while exploring deeper
+/// combinations to prune invalid partial groups.
+///
+/// # Arguments
+///
+/// - `conflicts`: mutable matrix tracking current conflict constraints.
+/// - `k`: required group size.
+/// - `skip`: bitmask of vertices that are already taken in this round.
+///
+/// # Returns
+///
+/// Eery valid `k`-set of vertex indices. 
 pub fn potential_groups(conflicts: &mut Vec<BitVec>, k: usize, skip: &BitVec) -> Vec<Group> {
     fn backtrack(
         conflicts: &mut Vec<BitVec>,
@@ -142,6 +308,7 @@ pub fn potential_groups(conflicts: &mut Vec<BitVec>, k: usize, skip: &BitVec) ->
     res
 }
 
+/// Mark all pairs inside `between` as mutually conflicting.
 #[inline]
 fn add_conflicts_between(conflicts: &mut Vec<BitVec>, between: &[usize]) {
     for i in between {
@@ -151,6 +318,7 @@ fn add_conflicts_between(conflicts: &mut Vec<BitVec>, between: &[usize]) {
     }
 }
 
+/// Remove all conflicts previously added by `add_conflicts_between`.
 #[inline]
 fn remove_conflicts_between(conflicts: &mut Vec<BitVec>, between: &[usize]) {
     for i in between {
@@ -160,6 +328,7 @@ fn remove_conflicts_between(conflicts: &mut Vec<BitVec>, between: &[usize]) {
     }
 }
 
+/// Add conflicts between one vertex `col` and all vertices from an iterator.
 #[inline]
 fn add_conflicts<'a>(conflicts: &mut Vec<BitVec>, col: usize, rows: impl Iterator<Item = &'a usize>) {
     for row in rows {
@@ -168,6 +337,7 @@ fn add_conflicts<'a>(conflicts: &mut Vec<BitVec>, col: usize, rows: impl Iterato
     }
 }
 
+/// Remove conflicts previously added by `add_conflicts`.
 #[inline]
 fn remove_conflicts<'a>(conflicts: &mut Vec<BitVec>, col: usize, rows: impl Iterator<Item = &'a usize>) {
     for row in rows {

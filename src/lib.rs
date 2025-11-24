@@ -14,7 +14,7 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
 }
 
 /// Get all possible ways to group a group of size k together.
-pub fn potential_combinations(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet<usize>) -> Vec<Vec<usize>> {
+pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet<usize>) -> Vec<Group> {
     fn backtrack_row(
         conflicts: &mut Vec<Vec<bool>>,
         sols: &mut Vec<Vec<usize>>,
@@ -83,7 +83,7 @@ mod tests {
             vec
         }).collect();
         let skip = HashSet::new();
-        let res = potential_combinations(&mut conflicts, k, &skip);
+        let res = potential_groups(&mut conflicts, k, &skip);
         assert_eq!(res.len(), 10);
     }
 }

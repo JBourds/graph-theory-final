@@ -1,13 +1,14 @@
-use std::collections::HashSet;
+
+use bitvec::prelude::*;
 
 /// Vector of vertex indices corresponding to one group
 type Group = Vec<usize>;
 
 /// Create the maximized number of unique assignments given some minimum group
 /// size.
-pub fn make_assignments(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Vec<Group>>> {
+pub fn make_assignments(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> Vec<Vec<Vec<Group>>> {
     fn backtrack(
-        conflicts: &mut Vec<Vec<bool>>,
+        conflicts: &mut Vec<BitVec>,
         sols: &mut Vec<Vec<Vec<Group>>>,
         curr: &mut Vec<Vec<Group>>,
         best: &mut usize,
@@ -61,13 +62,13 @@ pub fn group_sizes(n: usize, min_group_size: usize) -> Vec<usize> {
 }
 
 /// Try all ways to make the current assignment
-pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
+pub fn single_assignment(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> Vec<Vec<Group>> {
     fn backtrack(
-        conflicts: &mut Vec<Vec<bool>>,
+        conflicts: &mut Vec<BitVec>,
         sols: &mut Vec<Vec<Group>>,
         curr: &mut Vec<Group>,
         sizes: &[usize],
-        skip: &mut HashSet<usize>,
+        skip: &mut BitVec,
     ) {
         let k = sizes[curr.len()];
         for g in potential_groups(conflicts, k, skip) {
@@ -76,14 +77,16 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
                 sols.push(curr.clone());
                 curr.pop();
             } else {
-                skip.extend(&g);
+                for e in &g {
+                    skip.set(*e, true)
+                }
                 add_conflicts_between(conflicts, &g);
                 curr.push(g);
                 backtrack(conflicts, sols, curr, sizes, skip);
                 if let Some(g) = curr.pop() {
                     remove_conflicts_between(conflicts, &g);
                     for e in g {
-                        skip.remove(&e);
+                        skip.set(e, false)
                     }
                 }
             }
@@ -92,7 +95,7 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
 
     let n = conflicts.len();
     let mut res: Vec<Vec<Group>> = vec![];
-    let mut skip = HashSet::new();
+    let mut skip = bitvec![0; conflicts.len()];
     let mut curr = vec![];
     let sizes = group_sizes(n, min_group_size);
     backtrack(conflicts, &mut res, &mut curr, &sizes, &mut skip);
@@ -101,18 +104,18 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
 }
 
 /// Get all possible ways to group a group of size k together.
-pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet<usize>) -> Vec<Group> {
+pub fn potential_groups(conflicts: &mut Vec<BitVec>, k: usize, skip: &BitVec) -> Vec<Group> {
     fn backtrack(
-        conflicts: &mut Vec<Vec<bool>>,
+        conflicts: &mut Vec<BitVec>,
         sols: &mut Vec<Vec<usize>>,
         curr: &mut Vec<usize>,
         row: usize,
         n: usize,
         k: usize,
-        skip: &HashSet<usize>,
+        skip: &BitVec,
     ) {
         for col in (row + 1)..n {
-            if skip.contains(&col) {
+            if skip[col] {
                 continue;
             }
             let is_valid = curr.iter().all(|row| !conflicts[*row][col]);
@@ -133,7 +136,7 @@ pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet
     let mut res = vec![];
     let n = conflicts.len();
     for row in 0..n {
-        if skip.contains(&row) {
+        if skip[row] {
             continue;
         }
         let mut curr = vec![row];
@@ -143,47 +146,48 @@ pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet
 }
 
 #[inline]
-fn add_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
+fn add_conflicts_between(conflicts: &mut Vec<BitVec>, between: &[usize]) {
     for i in between {
         for j in between {
-            conflicts[*i][*j] = true;
+            conflicts[*i].set(*j, true);
         }
     }
 }
 
 #[inline]
-fn remove_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
+fn remove_conflicts_between(conflicts: &mut Vec<BitVec>, between: &[usize]) {
     for i in between {
         for j in between {
-            conflicts[*i][*j] = false;
+            conflicts[*i].set(*j, false);
         }
     }
 }
 
 #[inline]
-fn add_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iterator<Item = &'a usize>) {
+fn add_conflicts<'a>(conflicts: &mut Vec<BitVec>, col: usize, rows: impl Iterator<Item = &'a usize>) {
     for row in rows {
-        conflicts[*row][col] = true;
-        conflicts[col][*row] = true;
+        conflicts[*row].set(col, true);
+        conflicts[col].set(*row, true);
     }
 }
 
 #[inline]
-fn remove_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iterator<Item = &'a usize>) {
+fn remove_conflicts<'a>(conflicts: &mut Vec<BitVec>, col: usize, rows: impl Iterator<Item = &'a usize>) {
     for row in rows {
-        conflicts[*row][col] = false;
-        conflicts[col][*row] = false;
+        conflicts[*row].set(col, false);
+        conflicts[col].set(*row, false);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
-    fn diagonal(n: usize) -> Vec<Vec<bool>> {
+    fn diagonal(n: usize) -> Vec<BitVec> {
         (0..n).map(|i| {
-                let mut vec = vec![false; n];
-                vec[i] = true;
+                let mut vec = bitvec![0; n];
+                vec.set(i, true);
                 vec
             }).collect()
     }
@@ -193,7 +197,7 @@ mod tests {
         let n = 5;
         let k = 3;
         let mut conflicts = diagonal(n);
-        let skip = HashSet::new();
+        let skip = bitvec![0; n];
         let res = potential_groups(&mut conflicts, k, &skip);
         assert_eq!(res.len(), 10);
     }

@@ -198,6 +198,21 @@ mod tests {
         assert_eq!(res.len(), 10);
     }
 
+    fn test_single_assignment(n: usize, k: usize) {
+        let mut conflicts = diagonal(n);
+        let res = single_assignment(&mut conflicts, k);
+        for groups in res {
+            let mut seen: HashSet<usize> = HashSet::new();
+            let mut count = 0;
+            for g in groups {
+                count += g.len();
+                seen.extend(&g);
+            }
+            assert_eq!(count, n);
+            assert_eq!(seen.len(), count);
+        }
+    }
+
     #[test]
     fn odd_complete_graph_single_assignment() {
         let tests = [
@@ -205,18 +220,7 @@ mod tests {
             (5, 2),
         ];
         for (n, k) in tests {
-            let mut conflicts = diagonal(n);
-            let res = single_assignment(&mut conflicts, k);
-            for groups in res {
-                let mut seen: HashSet<usize> = HashSet::new();
-                let mut count = 0;
-                for g in groups {
-                    count += g.len();
-                    seen.extend(&g);
-                }
-                assert_eq!(count, n);
-                assert_eq!(seen.len(), count);
-            }
+            test_single_assignment(n, k);
         }
     }
 
@@ -230,18 +234,7 @@ mod tests {
             (6, 6),
         ];
         for (n, k) in tests {
-            let mut conflicts = diagonal(n);
-            let res = single_assignment(&mut conflicts, k);
-            for groups in res {
-                let mut seen: HashSet<usize> = HashSet::new();
-                let mut count = 0;
-                for g in groups {
-                    count += g.len();
-                    seen.extend(&g);
-                }
-                assert_eq!(count, n);
-                assert_eq!(seen.len(), count);
-            }
+            test_single_assignment(n, k);
         }
     }
 

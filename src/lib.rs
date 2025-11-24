@@ -81,11 +81,9 @@ pub fn single_assignment(conflicts: &mut Vec<BitVec>, group_sizes: &[usize]) -> 
                 for e in &g {
                     skip.set(*e, true)
                 }
-                add_conflicts_between(conflicts, &g);
                 curr.push(g);
                 backtrack(conflicts, sols, curr, group_sizes, skip);
                 if let Some(g) = curr.pop() {
-                    remove_conflicts_between(conflicts, &g);
                     for e in g {
                         skip.set(e, false)
                     }

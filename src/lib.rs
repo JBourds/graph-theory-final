@@ -43,6 +43,24 @@ pub fn make_assignments(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -
     sols
 }
 
+pub fn group_sizes(n: usize, min_group_size: usize) -> Vec<usize> {
+    let mut remaining = n % min_group_size;
+    let mut sizes = vec![min_group_size; n / min_group_size]; 
+    if sizes.is_empty() {
+        return sizes;
+    }
+    // Evenly distribute leftover across vector
+    'outer: loop {
+        for i in 0..sizes.len() {
+            if remaining == 0 {
+                break 'outer sizes;
+            }
+            sizes[i] += 1;
+            remaining -= 1;
+        }
+    }
+}
+
 /// Try all ways to make the current assignment
 /// FIXME: Repeats with groups rearranged in order
 pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
@@ -50,20 +68,22 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
         conflicts: &mut Vec<Vec<bool>>,
         sols: &mut Vec<Vec<Group>>,
         curr: &mut Vec<Group>,
-        k: usize,
-        ngroups: usize,
+        sizes: &[usize],
         skip: &mut HashSet<usize>,
     ) {
+        let k = sizes[curr.len()];
         for g in potential_groups(conflicts, k, skip) {
-            if curr.len() == ngroups - 1 {
+            if curr.len() == sizes.len() - 1 {
                 curr.push(g);
                 sols.push(curr.clone());
                 curr.pop();
             } else {
                 skip.extend(&g);
+                add_conflicts_between(conflicts, &g);
                 curr.push(g);
-                backtrack(conflicts, sols, curr, k, ngroups, skip);
+                backtrack(conflicts, sols, curr, sizes, skip);
                 if let Some(g) = curr.pop() {
+                    remove_conflicts_between(conflicts, &g);
                     for e in g {
                         skip.remove(&e);
                     }
@@ -76,32 +96,8 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
     let mut res: Vec<Vec<Group>> = vec![];
     let mut skip = HashSet::new();
     let mut curr = vec![];
-    if n % min_group_size == 0 {
-        let n_groups = n / min_group_size;
-        backtrack(conflicts, &mut res, &mut curr, min_group_size, n_groups, &mut skip);
-    } else {
-        let n_big = n % min_group_size;
-        let mut big_groups = vec![];
-        backtrack(conflicts, &mut big_groups, &mut curr, min_group_size + 1, n_big, &mut skip);
-
-        let n_small = (n - n_big * (min_group_size + 1)) / min_group_size;
-        if n_small == 0 {
-            std::mem::swap(&mut res, &mut big_groups);
-        }
-        for mut sol in big_groups {
-            for group in &sol {
-                add_conflicts_between(conflicts, &group);
-                skip.extend(group);
-            }
-            backtrack(conflicts, &mut res, &mut sol, min_group_size, n_small + n_big, &mut skip);
-            for group in &sol {
-                remove_conflicts_between(conflicts, &group);
-                for e in group {
-                    skip.remove(&e);
-                }
-            }
-        }
-    }
+    let sizes = group_sizes(n, min_group_size);
+    backtrack(conflicts, &mut res, &mut curr, &sizes, &mut skip);
 
     res
 }
@@ -254,8 +250,8 @@ mod tests {
 
     #[test]
     fn odd_complete_all_assignments() {
-        let mut conflicts = diagonal(4);
-        let res = make_assignments(&mut conflicts, 2);
-        assert_eq!(res[0].len(), 3);
+        let mut conflicts = diagonal(5);
+        let res = make_assignments(&mut conflicts, 3);
+        assert_eq!(res[0].len(), 1);
     }
 }

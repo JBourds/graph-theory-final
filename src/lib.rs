@@ -5,7 +5,6 @@ type Group = Vec<usize>;
 
 /// Create the maximized number of unique assignments given some minimum group
 /// size.
-/// FIXME: Don't repeat same groups with order rearranged
 pub fn make_assignments(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Vec<Group>>> {
     fn backtrack(
         conflicts: &mut Vec<Vec<bool>>,
@@ -62,7 +61,6 @@ pub fn group_sizes(n: usize, min_group_size: usize) -> Vec<usize> {
 }
 
 /// Try all ways to make the current assignment
-/// FIXME: Repeats with groups rearranged in order
 pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
     fn backtrack(
         conflicts: &mut Vec<Vec<bool>>,
@@ -250,8 +248,24 @@ mod tests {
 
     #[test]
     fn odd_complete_all_assignments() {
-        let mut conflicts = diagonal(5);
-        let res = make_assignments(&mut conflicts, 3);
-        assert_eq!(res[0].len(), 1);
+        let tests = [
+            (3, 2, 1, vec![3]),
+            (5, 2, 1, vec![3, 2]),
+            (5, 3, 1, vec![5]),
+            (7, 2, 3, vec![3, 2, 2]),
+        ];
+        for (n, k, exp_rounds, exp_sizes) in tests {
+            let mut conflicts = diagonal(n);
+            let res = make_assignments(&mut conflicts, k);
+            let nrounds = res[0].len();
+            assert_eq!(nrounds, exp_rounds);
+            for possibility in res {
+                for i in 0..exp_rounds {
+                    let group_sizes = possibility[i].iter().map(|v| v.len());
+                    assert!(group_sizes.eq(exp_sizes.iter().copied()));
+                }
+            }
+
+        }
     }
 }

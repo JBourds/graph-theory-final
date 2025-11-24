@@ -73,15 +73,19 @@ fn remove_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl I
 mod tests {
     use super::*;
 
+    fn diagonal(n: usize) -> Vec<Vec<bool>> {
+        (0..n).map(|i| {
+                let mut vec = vec![false; n];
+                vec[i] = true;
+                vec
+            }).collect()
+    }
+
     #[test]
     fn no_conflicts() {
         let n = 5;
         let k = 3;
-        let mut conflicts: Vec<_> = (0..n).map(|i| {
-            let mut vec = vec![false; n];
-            vec[i] = true;
-            vec
-        }).collect();
+        let mut conflicts = diagonal(n);
         let skip = HashSet::new();
         let res = potential_groups(&mut conflicts, k, &skip);
         assert_eq!(res.len(), 10);

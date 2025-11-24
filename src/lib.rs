@@ -12,9 +12,9 @@ pub fn make_assignments(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> V
         sols: &mut Vec<Vec<Vec<Group>>>,
         curr: &mut Vec<Vec<Group>>,
         best: &mut usize,
-        min_group_size: usize,
+        group_sizes: &[usize],
     ) {
-        let options = single_assignment(conflicts, min_group_size);
+        let options = single_assignment(conflicts, group_sizes);
         if options.is_empty() && curr.len() >= *best {
             if curr.len() > *best {
                 sols.clear();
@@ -27,7 +27,7 @@ pub fn make_assignments(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> V
                     add_conflicts_between(conflicts, g);
                 }
                 curr.push(opt);
-                backtrack(conflicts, sols, curr, best, min_group_size);
+                backtrack(conflicts, sols, curr, best, group_sizes);
                 if let Some(opt) = curr.pop() {
                     for g in &opt {
                         remove_conflicts_between(conflicts, g);
@@ -39,7 +39,8 @@ pub fn make_assignments(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> V
     let mut sols = vec![];
     let mut curr = vec![];
     let mut best = 0;
-    backtrack(conflicts, &mut sols, &mut curr, &mut best, min_group_size);
+    let group_sizes = group_sizes(conflicts.len(), min_group_size);
+    backtrack(conflicts, &mut sols, &mut curr, &mut best, &group_sizes);
     sols
 }
 
@@ -62,17 +63,17 @@ pub fn group_sizes(n: usize, min_group_size: usize) -> Vec<usize> {
 }
 
 /// Try all ways to make the current assignment
-pub fn single_assignment(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> Vec<Vec<Group>> {
+pub fn single_assignment(conflicts: &mut Vec<BitVec>, group_sizes: &[usize]) -> Vec<Vec<Group>> {
     fn backtrack(
         conflicts: &mut Vec<BitVec>,
         sols: &mut Vec<Vec<Group>>,
         curr: &mut Vec<Group>,
-        sizes: &[usize],
+        group_sizes: &[usize],
         skip: &mut BitVec,
     ) {
-        let k = sizes[curr.len()];
+        let k = group_sizes[curr.len()];
         for g in potential_groups(conflicts, k, skip) {
-            if curr.len() == sizes.len() - 1 {
+            if curr.len() == group_sizes.len() - 1 {
                 curr.push(g);
                 sols.push(curr.clone());
                 curr.pop();
@@ -82,7 +83,7 @@ pub fn single_assignment(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> 
                 }
                 add_conflicts_between(conflicts, &g);
                 curr.push(g);
-                backtrack(conflicts, sols, curr, sizes, skip);
+                backtrack(conflicts, sols, curr, group_sizes, skip);
                 if let Some(g) = curr.pop() {
                     remove_conflicts_between(conflicts, &g);
                     for e in g {
@@ -95,11 +96,9 @@ pub fn single_assignment(conflicts: &mut Vec<BitVec>, min_group_size: usize) -> 
 
     let n = conflicts.len();
     let mut res: Vec<Vec<Group>> = vec![];
-    let mut skip = bitvec![0; conflicts.len()];
+    let mut skip = bitvec![0; n];
     let mut curr = vec![];
-    let sizes = group_sizes(n, min_group_size);
-    backtrack(conflicts, &mut res, &mut curr, &sizes, &mut skip);
-
+    backtrack(conflicts, &mut res, &mut curr, &group_sizes, &mut skip);
     res
 }
 
@@ -204,7 +203,8 @@ mod tests {
 
     fn test_single_assignment(n: usize, k: usize) {
         let mut conflicts = diagonal(n);
-        let res = single_assignment(&mut conflicts, k);
+        let group_sizes = group_sizes(n, k);
+        let res = single_assignment(&mut conflicts, &group_sizes);
         for groups in res {
             let mut seen: HashSet<usize> = HashSet::new();
             let mut count = 0;

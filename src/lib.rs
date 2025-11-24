@@ -52,6 +52,9 @@ pub fn potential_combinations(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &H
     let mut res = vec![];
     let n = conflicts.len();
     for row in 0..n {
+        if skip.contains(&row) {
+            continue;
+        }
         let mut curr = vec![row];
         backtrack_row(conflicts, &mut res, &mut curr, row, n, k, skip);
     }

@@ -241,9 +241,29 @@ mod tests {
         }
     }
 
+    fn test_all_assignment(n: usize, k: usize, exp_rounds: usize, exp_sizes: &[usize]) {
+        let mut conflicts = diagonal(n);
+        let res = make_assignments(&mut conflicts, k);
+        let nrounds = res[0].len();
+        assert_eq!(nrounds, exp_rounds, "Expected {exp_rounds} rounds but found {nrounds}");
+        for possibility in res {
+            for i in 0..exp_rounds {
+                let group_sizes = possibility[i].iter().map(|v| v.len());
+                assert!(group_sizes.eq(exp_sizes.iter().copied()));
+            }
+        }
+    }
+
     #[test]
     fn even_complete_all_assignments() {
-        // TODO: Write tests
+        let tests = [
+            (4, 2, 3, vec![2, 2]),
+            (4, 3, 1, vec![4]),
+            (6, 3, 1, vec![3, 3]),
+        ];
+        for (n, k, exp_rounds, exp_sizes) in tests {
+            test_all_assignment(n, k, exp_rounds, &exp_sizes);
+        }
     }
 
     #[test]
@@ -255,17 +275,7 @@ mod tests {
             (7, 2, 3, vec![3, 2, 2]),
         ];
         for (n, k, exp_rounds, exp_sizes) in tests {
-            let mut conflicts = diagonal(n);
-            let res = make_assignments(&mut conflicts, k);
-            let nrounds = res[0].len();
-            assert_eq!(nrounds, exp_rounds);
-            for possibility in res {
-                for i in 0..exp_rounds {
-                    let group_sizes = possibility[i].iter().map(|v| v.len());
-                    assert!(group_sizes.eq(exp_sizes.iter().copied()));
-                }
-            }
-
+            test_all_assignment(n, k, exp_rounds, &exp_sizes);
         }
     }
 }

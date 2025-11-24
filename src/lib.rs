@@ -45,9 +45,27 @@ pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) 
         let n_groups = n / min_group_size;
         backtrack(conflicts, &mut res, &mut curr, min_group_size, n_groups, &mut skip);
     } else {
-        // let n_big = n % min_group_size;
-        // let n_small = (n - n_big * (min_group_size + 1)) / min_group_size;
-        todo!()
+        let n_big = n % min_group_size;
+        let mut big_groups = vec![];
+        backtrack(conflicts, &mut big_groups, &mut curr, min_group_size + 1, n_big, &mut skip);
+
+        let n_small = (n - n_big * (min_group_size + 1)) / min_group_size;
+        if n_small == 0 {
+            std::mem::swap(&mut res, &mut big_groups);
+        }
+        for mut sol in big_groups {
+            for group in &sol {
+                add_conflicts_between(conflicts, &group);
+                skip.extend(group);
+            }
+            backtrack(conflicts, &mut res, &mut sol, min_group_size, n_small + n_big, &mut skip);
+            for group in &sol {
+                remove_conflicts_between(conflicts, &group);
+                for e in group {
+                    skip.remove(&e);
+                }
+            }
+        }
     }
 
     res
@@ -95,6 +113,22 @@ pub fn potential_groups(conflicts: &mut Vec<Vec<bool>>, k: usize, skip: &HashSet
     res
 }
 
+fn add_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
+    for i in between {
+        for j in between {
+            conflicts[*i][*j] = true;
+        }
+    }
+}
+
+fn remove_conflicts_between(conflicts: &mut Vec<Vec<bool>>, between: &[usize]) {
+    for i in between {
+        for j in between {
+            conflicts[*i][*j] = false;
+        }
+    }
+}
+
 fn add_conflicts<'a>(conflicts: &mut Vec<Vec<bool>>, col: usize, rows: impl Iterator<Item = &'a usize>) {
     for row in rows {
         conflicts[*row][col] = true;
@@ -132,7 +166,29 @@ mod tests {
     }
 
     #[test]
-    fn even_complete_graph_pairings() {
+    fn odd_complete_graph_single_assignment() {
+        let tests = [
+            (3, 2),
+            (5, 2),
+        ];
+        for (n, k) in tests {
+            let mut conflicts = diagonal(n);
+            let res = single_assignment(&mut conflicts, k);
+            for groups in res {
+                let mut seen: HashSet<usize> = HashSet::new();
+                let mut count = 0;
+                for g in groups {
+                    count += g.len();
+                    seen.extend(&g);
+                }
+                assert_eq!(count, n);
+                assert_eq!(seen.len(), count);
+            }
+        }
+    }
+
+    #[test]
+    fn even_complete_graph_single_assignment() {
         let tests = [
             (2, 2),
             (4, 2),

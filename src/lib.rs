@@ -5,11 +5,46 @@ type Group = Vec<usize>;
 
 /// Create the maximized number of unique assignments given some minimum group
 /// size.
-pub fn make_assignments(conflicts: Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
-    todo!()
+/// FIXME: Don't repeat same groups with order rearranged
+pub fn make_assignments(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Vec<Group>>> {
+    fn backtrack(
+        conflicts: &mut Vec<Vec<bool>>,
+        sols: &mut Vec<Vec<Vec<Group>>>,
+        curr: &mut Vec<Vec<Group>>,
+        best: &mut usize,
+        min_group_size: usize,
+    ) {
+        let options = single_assignment(conflicts, min_group_size);
+        if options.is_empty() && curr.len() >= *best {
+            if curr.len() > *best {
+                sols.clear();
+            }
+            sols.push(curr.clone());
+            *best = curr.len();
+        } else {
+            for opt in options {
+                for g in &opt {
+                    add_conflicts_between(conflicts, g);
+                }
+                curr.push(opt);
+                backtrack(conflicts, sols, curr, best, min_group_size);
+                if let Some(opt) = curr.pop() {
+                    for g in &opt {
+                        remove_conflicts_between(conflicts, g);
+                    }
+                }
+            }
+        }
+    }
+    let mut sols = vec![];
+    let mut curr = vec![];
+    let mut best = 0;
+    backtrack(conflicts, &mut sols, &mut curr, &mut best, min_group_size);
+    sols
 }
 
 /// Try all ways to make the current assignment
+/// FIXME: Repeats with groups rearranged in order
 pub fn single_assignment(conflicts: &mut Vec<Vec<bool>>, min_group_size: usize) -> Vec<Vec<Group>> {
     fn backtrack(
         conflicts: &mut Vec<Vec<bool>>,
@@ -210,5 +245,17 @@ mod tests {
                 assert_eq!(seen.len(), count);
             }
         }
+    }
+
+    #[test]
+    fn even_complete_all_assignments() {
+        // TODO: Write tests
+    }
+
+    #[test]
+    fn odd_complete_all_assignments() {
+        let mut conflicts = diagonal(4);
+        let res = make_assignments(&mut conflicts, 2);
+        assert_eq!(res[0].len(), 3);
     }
 }

@@ -32,7 +32,7 @@ Specifically, we look to answer the following:
   - How does the parity of _n_ (odd or even) affect this?
   - How does this change given some initial set of conflicts between students?
 - How do these answers change when groups are of minimum size _k_, where _k_
-  is some integer $gt.eq 2$?
+  is some integer $gt 2$?
 
 = Partner Matchings (k = 2)
 

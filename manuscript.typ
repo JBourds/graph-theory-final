@@ -152,14 +152,14 @@ degree.
 
 $ N_"friend_max" = delta(G) $
 
-= Bigger Groups are NP-Complete ($k gt.eq 3$)
+= Bigger Groups are NP-Hard ($k gt.eq 3$)
 
 For groups of size $k gt.eq 3$, this problem is equivalent to finding
 repeated $k$-dimensional perfect matchings which also require larger degree
 matchings for odd parities. When $k = 3$ and $n$ is a multiple
 of $k$, each round corresponds to finding a perfect 3-dimensional matching with
-no leftovers. This is a known NP-complete problem, and thus each round in the
-unique group assignment problem is equivalent to an NP-complete problem when
+no leftovers. This is a known NP-hard problem, and thus each round in the
+unique group assignment problem is equivalent to an NP-hard problem when
 $k gt.eq 3$.
 When $n$ is not a multiple of $k$, verifying a candidate round is
 still easily done in polynomial time by checking that each matching has at least
@@ -171,8 +171,8 @@ would greatly increase.
 = Actually, it's NP-Super Duper Hard
 
 When $k gt.eq 3$, each individual round of group formation already requires
-solving an NP-complete problem. For $k = 3$, this is exactly the well-known
-Perfect 3-Dimensional Matching problem, which is NP-complete. The same reasoning
+solving an NP-hard problem. For $k = 3$, this is exactly the well-known
+Perfect 3-Dimensional Matching problem, which is NP-hard. The same reasoning
 extends to all fixed $k gt.eq 3$.
 
 This observation immediately implies the repeated unique group assignment
@@ -186,7 +186,7 @@ is NP-hard.
 
 *Proof.*
 
-We reduce the NP-complete Perfect 3-Dimensional Matching (3DM) problem to a
+We reduce the NP-hard Perfect 3-Dimensional Matching (3DM) problem to a
 single round of RUGA with group size $k = 3$ where $n$ is a factor of $k$.
 Given an instance of 3DM consisting of disjoint sets $X, Y, Z$ and the set of
 possible triples $T subset.eq X crossmark Y crossmark Z$, construct a graph
@@ -202,7 +202,7 @@ is NP-hard. $qed$
 The NP-hardness result from earlier applies to a single round. The actual RUGA
 problem asks for something much harder: an optimal sequence of such rounds to
 maximize the number of non-conflicting group assignments. Because even
-constructing a single round is NP-complete, constructing a sequence of rounds
+constructing a single round is NP-hard, constructing a sequence of rounds
 is at least as hard. This problem exhibits the characteristic alternation of
 existential and universal constraints seen in problems from the second level of
 the polynomial hierarchy. Problems in the  $Sigma_2^P$ complexity class are
